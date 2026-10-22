@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: miniledger-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: miniledger
+      POSTGRES_PASSWORD: miniledger
+      POSTGRES_DB: miniledger
+    ports:
+      # Published on 5434 by default because 5432 is commonly taken by a locally
+      # installed PostgreSQL and 5433 by Docker's own WSL relay.
+      # Override with POSTGRES_HOST_PORT and mirror it in server/.env.
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - miniledger-pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U miniledger -d miniledger"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    container_name: miniledger-adminer
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  miniledger-pgdata:
