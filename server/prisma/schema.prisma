@@ -1,0 +1,61 @@
+// MiniLedger data model.
+// Money is always stored in minor units (paise/cents) as an integer — never a float.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loans Loan[]
+
+  @@map("users")
+}
+
+/// A mock login code. Stored hashed, single-use, short-lived.
+///
+/// Deliberately NOT a relation to User: a code is issued before the account
+/// exists (login registers new numbers on the fly), so the two are linked by
+/// phone number rather than a foreign key.
+model OtpCode {
+  id         String    @id @default(uuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@map("otp_codes")
+}
+
+model Loan {
+  id          String    @id @default(uuid())
+  userId      String
+  friendName  String
+  amountMinor Int
+  currency    String    @default("INR")
+  dueDate     DateTime
+  repaidAt    DateTime?
+  receiptUrl  String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueDate])
+  @@index([userId, repaidAt])
+  @@map("loans")
+}
